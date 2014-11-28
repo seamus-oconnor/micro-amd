@@ -3,7 +3,7 @@
   "author": "Séamus O'Connor",
   "license": "MIT",
   "homepage": "https://github.com/seamus-oconnor/micro-amd",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Micro AMD compliant loader",
   "main": "dist/micro-amd.js",
   "devDependencies": {

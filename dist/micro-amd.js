@@ -1,5 +1,5 @@
 /*!
-* Micro AMD Javascript Library v0.2.4
+* Micro AMD Javascript Library v0.0.3
 * https://github.com/seamus-oconnor/micro-amd/
 *
 * Copyright 2014 - 2014 Pneumatic Web Technologies Corp. and other contributors

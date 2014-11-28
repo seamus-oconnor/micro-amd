@@ -240,4 +240,11 @@ module.exports = function(grunt) {
     'connect',
     'watch'
   ]);
+
+  grunt.registerTask('release', 'Build a release and push to Github', function(n) {
+    if(!n) {
+      n = 'patch';
+    }
+    grunt.task.run('bump-only:' + n, 'build', 'bump-commit');
+  });
 };
