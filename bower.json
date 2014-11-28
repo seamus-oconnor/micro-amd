@@ -18,7 +18,6 @@
     "Gruntfile.js",
     "bower_components",
     "scripts",
-    "src",
     "tests"
   ],
   "dependencies": {},

@@ -77,7 +77,7 @@ var gruntConfig = {
     },
   },
   uglify: {
-    microamd: {
+    dist: {
       options: {
         ASCIIOnly: true,
         mangle: false,
@@ -91,6 +91,17 @@ var gruntConfig = {
       },
       files: [
         { src: ['dist/micro-amd.js'], dest: 'dist/micro-amd.js' },
+      ]
+    },
+    minify: {
+      options: {
+        ASCIIOnly: true,
+        mangle: true,
+        preserveComments: false,
+        banner: JS_COPYRIGHT_HEADER
+      },
+      files: [
+        { src: ['dist/micro-amd.js'], dest: 'dist/micro-amd.min.js' },
       ]
     },
   },
@@ -199,7 +210,8 @@ module.exports = function(grunt) {
     'mkdir',
     'copy',
     'removelogging',
-    'uglify',
+    'uglify:minify',
+    'uglify:dist',
   ]);
 
   grunt.registerTask('test', [

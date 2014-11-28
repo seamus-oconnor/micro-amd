@@ -1,12 +1,9 @@
-/* global console:false */
-
 (function(global) {
-  "use strict";
+  'use strict';
 
   var registry = {};
   var head = document.getElementsByTagName('head')[0];
   var logPile = [];
-  var currentlyAddingScript;
   var config = {
     baseUrl: './',
     paths: {}
@@ -16,13 +13,18 @@
     return Object.prototype.toString.call(arr) === '[object Array]';
   }
 
-  function logError(message, level) {
-    level = level || 'log';
-    if(console && console.log) {
-      console[level](message);
-    } else {
-      logPile.push(message, level);
+  function err(msg) {
+    throw new Error(msg);
+  }
+
+  function qualifyURL(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    if(a.href.substr(0, 4) !== 'http') {
+      a.href = location.href + url;
     }
+    var bloo = a.cloneNode(false).href.substr(location.href.length);
+    return bloo;
   }
 
   function getModule(name, options) {
@@ -47,7 +49,33 @@
       }
     }
 
-    throw Error('Unable to find currently executing script');
+    err('Unable to find currently executing script');
+  }
+
+  function resolveName(name, parentName) {
+    // console.log('resolveName(' + name + ', ' + parentName + ')');
+    var scope = ''; // normal and abs url cases;
+
+    if(name.charAt(0) === '.') { // relative url
+      // use parentMod to resolve URL;
+      scope = parentName + '/../';
+    } else if(name.indexOf('/') > 0) {
+      var parts = name.split('/');
+      var prefix = config.paths[parts[0]];
+      if(prefix) {
+        scope = prefix;
+      }
+    }
+
+
+    return qualifyURL(scope + name);
+  }
+
+  function buildUrl(mod, parentMod) {
+    var name = resolveName(mod.name, parentMod.name);
+    // console.log('resovedName:', name);
+
+    return (config.baseUrl + '/' + name + '.js').replace(/\/{2,}/, '/');
   }
 
   function loadDependencies(deps, parent, fn) {
@@ -77,33 +105,6 @@
         mod.load(loaded, parent);
       }
     }
-  }
-
-  function resolveName(name, parentName) {
-    // console.log('resolveName(' + name + ', ' + parentName + ')');
-    var scope = ''; // normal and abs url cases;
-
-    if(name.charAt(0) === '.') { // relative url
-      // use parentMod to resolve URL;
-      scope = parentName + '/../';
-    } else if(name.indexOf('/') > 0) {
-      var parts = name.split('/');
-      var prefix = config.paths[parts[0]];
-      if(prefix) {
-        scope = prefix;
-      }
-    }
-
-    var anchor = document.createElement('a');
-    anchor.href = location.href + scope + name;
-    return anchor.href.substr(location.href.length);
-  }
-
-  function buildUrl(mod, parentMod) {
-    var name = resolveName(mod.name, parentMod.name);
-    // console.log('resovedName:', name);
-
-    return (config.baseUrl + '/' + name + '.js').replace(/\/{2,}/, '/');
   }
 
   function Module(name) {
@@ -152,7 +153,7 @@
     if(this.loaded) {
       ready();
     } else if(this.loading) {
-      throw new Error('not handled');
+      err('not handled');
     } else {
       this.loading = true;
       var s = document.createElement('script');
@@ -160,13 +161,11 @@
       s.onload = scriptLoad;
       s.onreadystatechange = scriptLoad;
       s.onerror = function() {
-        logError('Unable to load ' + s.src);
+        err('Unable to load ' + s.src);
       };
 
       // For older IE
-      currentlyAddingScript = s;
       head.appendChild(s);
-      currentlyAddingScript = null;
 
       this.node = s;
     }
@@ -194,8 +193,8 @@
     }
 
     if(!name) {
-      var script = currentlyAddingScript || executingScript();
-      name = script.src.substr(location.href.length);
+      var script = executingScript();
+      name = qualifyURL(script.src);
       name = name.replace(/\.js$/, '');
     }
 
@@ -203,10 +202,12 @@
 
     var mod = getModule(name);
     if(mod.loaded) {
-      throw Error('Module ' + name + ' defined twice');
+      err('Module ' + name + ' defined twice');
     }
     mod.setup(deps, fn);
   }
+
+  microAmdDefine.amd = true;
 
   function microAmdRequire(deps, fn) {
     deps = deps || [];
@@ -224,6 +225,11 @@
 
   microAmdRequire.reset = function microAmdReset() {
     registry = {};
+  };
+
+  microAmdRequire.destroy = function microAmdDestroy() {
+    delete global.define;
+    delete global.require;
   };
 
   microAmdRequire.logPile = logPile;
