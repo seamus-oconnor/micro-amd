@@ -1,0 +1,38 @@
+{
+  "name": "micro-amd",
+  "author": "Séamus O'Connor",
+  "license": "MIT",
+  "homepage": "https://github.com/seamus-oconnor/micro-amd",
+  "version": "0.0.1",
+  "description": "Micro AMD compliant loader",
+  "main": "micro-amd.js",
+  "devDependencies": {
+    "grunt": "^0.4.4",
+    "grunt-bump": "0.0.16",
+    "grunt-contrib-clean": "^0.6.0",
+    "grunt-contrib-connect": "^0.8.0",
+    "grunt-contrib-copy": "^0.7.0",
+    "grunt-contrib-jshint": "^0.10.0",
+    "grunt-contrib-uglify": "^0.6.0",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-mkdir": "^0.1.2",
+    "grunt-mocha": "^0.4.11",
+    "grunt-remove-logging": "^0.2.0",
+    "grunt-saucelabs": "^8.3.2",
+    "mocha": "^1.21.5"
+  },
+  "private": true,
+  "scripts": {
+    "test": "mocha --ui bdd"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seamus-oconnor/micro-amd"
+  },
+  "keywords": [
+    "shims"
+  ],
+  "bugs": {
+    "url": "https://github.com/seamus-oconnor/micro-amd/issues"
+  }
+}

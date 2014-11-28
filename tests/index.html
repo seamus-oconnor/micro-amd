@@ -1,0 +1,46 @@
+<!doctype html>
+
+<html lang="en-CA">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<link rel="stylesheet" type="text/css" href="../bower_components/mocha/mocha.css">
+
+<title>Micro AMD Tests</title>
+
+<style type="text/css">
+body {
+  overflow-y: scroll;
+}
+</style>
+
+</head>
+<body>
+
+<h1>Micro AMD Tests</h1>
+
+<div id="mocha"></div>
+
+<script src="../bower_components/mocha/mocha.js"></script>
+<script src="../bower_components/expect/index.js"></script>
+<script>
+mocha.setup('bdd');
+</script>
+
+<script src="../src/micro-amd.js"></script>
+<!-- <script src="../bower_components/requirejs/require.js"></script> -->
+<script src="helpers.js"></script>
+<script src="specs/shallow.js"></script>
+<script src="specs/deep.js"></script>
+
+<script>
+mocha.setup('bdd');
+
+window.onload = function() {
+  mocha.run();
+};
+</script>
+
+</body>
+</html>
