@@ -1,11 +1,11 @@
 {
-  "name": "lift.js",
-  "description": "Lift old browsers up to a modern level",
-  "version": "0.2.4",
+  "name": "micro-amd",
+  "description": "Micro AMD compliant loader",
+  "version": "0.0.2",
   "authors": [
     "Séamus O'Connor <seamus.oconnor@pneumaticweb.com>"
   ],
-  "main": "dist/lift.js",
+  "main": "dist/micro-amd.js",
   "keywords": [
     "shim"
   ],
