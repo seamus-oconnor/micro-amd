@@ -1,7 +1,7 @@
 {
   "name": "micro-amd",
   "description": "Micro AMD compliant loader",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "authors": [
     "Séamus O'Connor <seamus.oconnor@pneumaticweb.com>"
   ],

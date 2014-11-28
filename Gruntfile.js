@@ -174,7 +174,7 @@ var gruntConfig = {
   bump: {
     options: {
       files: ['bower.json', 'package.json'],
-      updateConfigs: [],
+      updateConfigs: ['bower'],
       commitFiles: ['-a'],
       pushTo: 'origin',
       push: false,
