@@ -1,13 +1,9 @@
 (function(global) {
   'use strict';
 
-  var registry = {};
-  var head = document.getElementsByTagName('head')[0];
-  var logPile = [];
-  var config = {
-    baseUrl: './',
-    paths: {}
-  };
+  /*************************** UTILS **************************/
+
+  function empty() {}
 
   function isArray(arr) {
     return Object.prototype.toString.call(arr) === '[object Array]';
@@ -17,14 +13,10 @@
     throw new Error(msg);
   }
 
-  function qualifyURL(url) {
+  function normalizeUrl(url) {
     var a = document.createElement('a');
     a.href = url;
-    if(a.href.substr(0, 4) !== 'http') {
-      a.href = location.href + url;
-    }
-    var bloo = a.cloneNode(false).href.substr(location.href.length);
-    return bloo;
+    return a.cloneNode(false).href;
   }
 
   function getModule(name, options) {
@@ -37,20 +29,25 @@
     return mod;
   }
 
-  function executingScript() {
-    if(document.currentScript) { return document.currentScript; }
-
-    var scripts = document.getElementsByTagName('script');
-
-    for(var i = scripts.length - 1; i >= 0; i--) {
-      var script = scripts[i];
-      if(script.readyState === 'interactive') {
-        return script;
-      }
-    }
-
-    err('Unable to find currently executing script');
+  function moduleName(url) {
+    return normalizeUrl(url).substr(baseUrl.length);
   }
+
+  // Doesn't look like executingScript is needed anymore. Keeping for future
+  // reference as requirejs implements this.
+
+  // function executingScript() {
+  // if(document.currentScript) { return document.currentScript; }
+
+  //   var scripts = document.getElementsByTagName('script');
+
+  //   for(var i = scripts.length - 1; i >= 0; i--) {
+  //     var script = scripts[i];
+  //     if(script.readyState === 'interactive') {
+  //       return script;
+  //     }
+  //   }
+  // }
 
   function resolveName(name, parentName) {
     // console.log('resolveName(' + name + ', ' + parentName + ')');
@@ -67,16 +64,36 @@
       }
     }
 
-
-    return qualifyURL(scope + name);
+    return moduleName(baseUrl + scope + name);
   }
 
   function buildUrl(mod, parentMod) {
+    // console.log('buildUrl', mod, parentMod);
     var name = resolveName(mod.name, parentMod.name);
-    // console.log('resovedName:', name);
+    // console.log('resolvedName: ' + name);
 
     return (config.baseUrl + '/' + name + '.js').replace(/\/{2,}/, '/');
   }
+
+
+  /****************************** SETUP *****************************/
+
+  var registry = {};
+  var anonQueue = [];
+  var head = document.getElementsByTagName('head')[0];
+  var logPile = [];
+  // var currentlyAddingScript;
+  var config = {
+    baseUrl: './',
+    paths: {}
+  };
+  // Construct the baseUrl without any trailing filename. E.g /foo/bar.html =
+  // /foo/ and /foo/ = /foo/
+  var baseUrl = normalizeUrl(location.protocol + '//' + location.host + location.pathname + '-/../');
+  // console.log('baseUrl:', baseUrl);
+
+
+  /*************************** DEPENDENCIES **************************/
 
   function loadDependencies(deps, parent, fn) {
     var count = deps.length;
@@ -107,6 +124,9 @@
     }
   }
 
+
+  /*************************** MODULE **************************/
+
   function Module(name) {
     this.name = name;
     this.defined = false;
@@ -119,6 +139,7 @@
     var scriptLoaded = false;
 
     function ready() {
+      // console.log('module ready. ' + self.deps.length + ' deps');
       loadDependencies(self.deps, self.name, function() {
         if(!self.obj) {
           var obj = self.initFn.apply(null, arguments);
@@ -128,21 +149,35 @@
       });
     }
 
-    function scriptLoad() {
+    function scriptLoad(e) {
       /*jshint validthis:true*/
 
+      e = e || window.event;
+
       var rs = this.readyState;
-      // liftJS.log.push('script.load called. Ready state: ' + rs);
       if(!scriptLoaded && (!rs || rs === 'loaded' || rs === 'complete')) {
         scriptLoaded = true;
-        self.loaded = true;
+        self.loading = false;
 
-        // liftJS.log.push('script.load actually loaded');
+        if(anonQueue.length > 1) {
+          err('Multiple anon define()s in ' + e.srcElement.src);
+        }
+        var def = anonQueue.length === 1 ? anonQueue.pop() : [null, empty, [] , null];
+        anonQueue = []; // empty anonQueue
+
+        var name = def.pop();
+        var deps = def.pop();
+        var fn = def.pop();
+        // var script = this /*def.pop()*/ || e.currentTarget || e.srcElement;
+
+        name = moduleName(this.src).replace(/\.js$/, '');
+
+        getModule(name).setup(deps, fn);
 
         // Handle memory leak in IE
         this.onload = this.onreadystatechange = null;
+
         if(head && this.parentNode) {
-          // liftJS.log.push('script.load removing script tag');
           head.removeChild(this);
         }
 
@@ -164,18 +199,28 @@
         err('Unable to load ' + s.src);
       };
 
-      // For older IE
+      // currentlyAddingScript = s;
       head.appendChild(s);
+      // currentlyAddingScript = null;
 
       this.node = s;
     }
   };
 
+  /**/
+
   Module.prototype.setup = function(deps, initFn) {
+    // console.log('Module.setup()');
+    if(this.loaded) {
+      err('Module ' + this.name + ' already defined');
+    }
+
     this.loaded = true;
     this.deps = deps;
     this.initFn = initFn;
   };
+
+  /*************************** define() **************************/
 
   // define(function() {});
   // define(['foo'], function() {});
@@ -192,25 +237,23 @@
       deps = [];
     }
 
-    if(!name) {
-      var script = executingScript();
-      name = qualifyURL(script.src);
-      name = name.replace(/\.js$/, '');
+    if(name) {
+      getModule(name).setup(deps, fn);
+    } else {
+      // queue all define() calls until the script's onload is fired.
+      anonQueue.push([/*currentlyAddingScript || executingScript(), */fn, deps, name]);
     }
 
     // console.log('define(' + name + ')', deps);
-
-    var mod = getModule(name);
-    if(mod.loaded) {
-      err('Module ' + name + ' defined twice');
-    }
-    mod.setup(deps, fn);
   }
 
   microAmdDefine.amd = true;
 
+  /*************************** require() **************************/
+
   function microAmdRequire(deps, fn) {
     deps = deps || [];
+    // console.log('require(' + deps.join(', ') + ')');
 
     loadDependencies(deps, '.', fn);
   }

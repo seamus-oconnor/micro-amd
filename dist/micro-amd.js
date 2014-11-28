@@ -10,29 +10,23 @@
 
 !function(global) {
   "use strict";
+  function empty() {}
   function isArray(arr) {
     return "[object Array]" === Object.prototype.toString.call(arr);
   }
   function err(msg) {
     throw new Error(msg);
   }
-  function qualifyURL(url) {
+  function normalizeUrl(url) {
     var a = document.createElement("a");
-    a.href = url, "http" !== a.href.substr(0, 4) && (a.href = location.href + url);
-    var bloo = a.cloneNode(!1).href.substr(location.href.length);
-    return bloo;
+    return a.href = url, a.cloneNode(!1).href;
   }
   function getModule(name, options) {
     var mod = registry[name];
     return mod || (mod = new Module(name, options), registry[mod.name] = mod), mod;
   }
-  function executingScript() {
-    if (document.currentScript) return document.currentScript;
-    for (var scripts = document.getElementsByTagName("script"), i = scripts.length - 1; i >= 0; i--) {
-      var script = scripts[i];
-      if ("interactive" === script.readyState) return script;
-    }
-    err("Unable to find currently executing script");
+  function moduleName(url) {
+    return normalizeUrl(url).substr(baseUrl.length);
   }
   function resolveName(name, parentName) {
     var scope = "";
@@ -40,7 +34,7 @@
       var parts = name.split("/"), prefix = config.paths[parts[0]];
       prefix && (scope = prefix);
     }
-    return qualifyURL(scope + name);
+    return moduleName(baseUrl + scope + name);
   }
   function buildUrl(mod, parentMod) {
     var name = resolveName(mod.name, parentMod.name);
@@ -63,21 +57,16 @@
     this.name = name, this.defined = !1, this.loaded = !1, this.loading = !1;
   }
   function microAmdDefine(name, deps, fn) {
-    if ("string" != typeof name && (fn = deps, deps = name, name = null), isArray(deps) || (fn = deps, 
-    deps = []), !name) {
-      var script = executingScript();
-      name = qualifyURL(script.src), name = name.replace(/\.js$/, "");
-    }
-    var mod = getModule(name);
-    mod.loaded && err("Module " + name + " defined twice"), mod.setup(deps, fn);
+    "string" != typeof name && (fn = deps, deps = name, name = null), isArray(deps) || (fn = deps, 
+    deps = []), name ? getModule(name).setup(deps, fn) : anonQueue.push([ fn, deps, name ]);
   }
   function microAmdRequire(deps, fn) {
     deps = deps || [], loadDependencies(deps, ".", fn);
   }
-  var registry = {}, head = document.getElementsByTagName("head")[0], logPile = [], config = {
+  var registry = {}, anonQueue = [], head = document.getElementsByTagName("head")[0], logPile = [], config = {
     baseUrl: "./",
     paths: {}
-  };
+  }, baseUrl = normalizeUrl(location.protocol + "//" + location.host + location.pathname + "-/../");
   Module.prototype.load = function(callback, parentMod) {
     function ready() {
       loadDependencies(self.deps, self.name, function() {
@@ -88,11 +77,18 @@
         callback(self.obj);
       });
     }
-    function scriptLoad() {
+    function scriptLoad(e) {
+      e = e || window.event;
       var rs = this.readyState;
-      scriptLoaded || rs && "loaded" !== rs && "complete" !== rs || (scriptLoaded = !0, 
-      self.loaded = !0, this.onload = this.onreadystatechange = null, head && this.parentNode && head.removeChild(this), 
-      ready());
+      if (!(scriptLoaded || rs && "loaded" !== rs && "complete" !== rs)) {
+        scriptLoaded = !0, self.loading = !1, anonQueue.length > 1 && err("Multiple anon define()s in " + e.srcElement.src);
+        var def = 1 === anonQueue.length ? anonQueue.pop() : [ null, empty, [], null ];
+        anonQueue = [];
+        var name = def.pop(), deps = def.pop(), fn = def.pop();
+        name = moduleName(this.src).replace(/\.js$/, ""), getModule(name).setup(deps, fn), 
+        this.onload = this.onreadystatechange = null, head && this.parentNode && head.removeChild(this), 
+        ready();
+      }
     }
     var self = this, scriptLoaded = !1;
     if (this.loaded) ready(); else if (this.loading) err("not handled"); else {
@@ -104,7 +100,8 @@
       }, head.appendChild(s), this.node = s;
     }
   }, Module.prototype.setup = function(deps, initFn) {
-    this.loaded = !0, this.deps = deps, this.initFn = initFn;
+    this.loaded && err("Module " + this.name + " already defined"), this.loaded = !0, 
+    this.deps = deps, this.initFn = initFn;
   }, microAmdDefine.amd = !0, microAmdRequire.config = function(cfg) {
     for (var name in cfg) cfg.hasOwnProperty(name) && (config[name] = cfg[name]);
   }, microAmdRequire.reset = function() {

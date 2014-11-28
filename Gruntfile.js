@@ -134,7 +134,7 @@ var gruntConfig = {
     scripts: {
       files: ['src/**/*.js', 'tests/specs/**/*.js', 'tests/*.html'],
       tasks: [
-        'build',
+        'jshint',
         '_mochaTests',
       ],
     },

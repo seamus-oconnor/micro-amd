@@ -23,6 +23,20 @@ describe('Shallow', function() {
     });
   });
 
+  it('will load named modules and return empty module', function(done) {
+    require(['modules/f'], function(f) {
+      expect(f).to.be(undefined);
+      done();
+    });
+  });
+
+  it('will load multiple named and return anon module', function(done) {
+    require(['modules/i'], function(i) {
+      expect(i).to.be('jk');
+      done();
+    });
+  });
+
   it('will throw if defined twice', function() {
     define('a', [], function() {
       return 'a';
