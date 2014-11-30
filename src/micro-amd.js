@@ -30,24 +30,21 @@
   }
 
   function moduleName(url) {
-    return normalizeUrl(url).substr(baseUrl.length);
+    return normalizeUrl(url).substr(baseUrl.length).replace(/\.js$/, '');
   }
 
-  // Doesn't look like executingScript is needed anymore. Keeping for future
-  // reference as requirejs implements this.
+  function executingScript() {
+  if(document.currentScript) { return document.currentScript; }
 
-  // function executingScript() {
-  // if(document.currentScript) { return document.currentScript; }
+    var scripts = document.getElementsByTagName('script');
 
-  //   var scripts = document.getElementsByTagName('script');
-
-  //   for(var i = scripts.length - 1; i >= 0; i--) {
-  //     var script = scripts[i];
-  //     if(script.readyState === 'interactive') {
-  //       return script;
-  //     }
-  //   }
-  // }
+    for(var i = scripts.length - 1; i >= 0; i--) {
+      var script = scripts[i];
+      if(script.readyState === 'interactive') {
+        return script;
+      }
+    }
+  }
 
   function resolveName(name, parentName) {
     // console.log('resolveName(' + name + ', ' + parentName + ')');
@@ -79,10 +76,10 @@
   /****************************** SETUP *****************************/
 
   var registry = {};
-  var anonQueue = [];
+  var anonDefine;
   var head = document.getElementsByTagName('head')[0];
   var logPile = [];
-  // var currentlyAddingScript;
+  var currentlyAddingScript;
   var config = {
     baseUrl: './',
     paths: {}
@@ -159,18 +156,21 @@
         scriptLoaded = true;
         self.loading = false;
 
-        if(anonQueue.length > 1) {
+        if(anonDefine === 'error') {
           err('Multiple anon define()s in ' + e.srcElement.src);
         }
-        var def = anonQueue.length === 1 ? anonQueue.pop() : [null, empty, [] , null];
-        anonQueue = []; // empty anonQueue
 
-        var name = def.pop();
-        var deps = def.pop();
-        var fn = def.pop();
-        // var script = this /*def.pop()*/ || e.currentTarget || e.srcElement;
+        var name = moduleName(this.src);
+        var deps = [];
+        var fn = empty;
 
-        name = moduleName(this.src).replace(/\.js$/, '');
+        if(anonDefine) {
+          name = anonDefine.pop() || name;
+          deps = anonDefine.pop();
+          fn = anonDefine.pop();
+
+          anonDefine = null; // remove held reference to anon define
+        } // else - must be resolved already.
 
         getModule(name).setup(deps, fn);
 
@@ -199,9 +199,9 @@
         err('Unable to load ' + s.src);
       };
 
-      // currentlyAddingScript = s;
+      currentlyAddingScript = s;
       head.appendChild(s);
-      // currentlyAddingScript = null;
+      currentlyAddingScript = null;
 
       this.node = s;
     }
@@ -240,8 +240,15 @@
     if(name) {
       getModule(name).setup(deps, fn);
     } else {
-      // queue all define() calls until the script's onload is fired.
-      anonQueue.push([/*currentlyAddingScript || executingScript(), */fn, deps, name]);
+      var script = currentlyAddingScript || executingScript();
+
+      if(anonDefine) {
+        // Already have a reference for an anon define? Then set to 'error'
+        anonDefine = 'error';
+        return;
+      }
+
+      anonDefine = [fn, deps, script ? moduleName(script.src) : null];
     }
 
     // console.log('define(' + name + ')', deps);
