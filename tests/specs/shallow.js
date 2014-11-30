@@ -1,10 +1,6 @@
 describe('Shallow', function() {
   var emptyFn = function() {};
 
-  beforeEach(function() {
-    require.reset();
-  });
-
   it('will load already defined module', function(done) {
     define('a', function() {
       return 'a';
@@ -38,10 +34,17 @@ describe('Shallow', function() {
   });
 
   it('will throw if defined twice', function() {
-    define('a', [], function() {
-      return 'a';
+    define('aa', [], function() {
+      return 'aa';
     });
 
-    expect(define).withArgs('a', [], emptyFn).to.throwException();
+    expect(define).withArgs('aa', [], emptyFn).to.throwException();
+  });
+
+  it('will load empty file as anon define', function(done) {
+    require(['modules/empty'], function(undef) {
+      expect(undef).to.be(undefined);
+      done();
+    });
   });
 });

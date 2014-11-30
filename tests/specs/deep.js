@@ -1,20 +1,16 @@
 describe('Deep', function() {
-  beforeEach(function() {
-    require.reset();
-  });
-
   it('resolve module dependencies', function(done) {
-    define('a', ['b'], function(b) {
-      expect(b).to.be('b');
-      return 'a';
+    define('l', ['m'], function(m) {
+      expect(m).to.be('m');
+      return 'l';
     });
 
-    define('b', function() {
-      return 'b';
+    define('m', function() {
+      return 'm';
     });
 
-    require(['a'], function(a) {
-      expect(a).to.be('a');
+    require(['l'], function(l) {
+      expect(l).to.be('l');
       done();
     });
   });

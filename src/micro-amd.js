@@ -57,7 +57,8 @@
       var parts = name.split('/');
       var prefix = config.paths[parts[0]];
       if(prefix) {
-        scope = prefix;
+        scope = prefix + '/';
+        name = parts.slice(1).join('/');
       }
     }
 
@@ -271,10 +272,6 @@
         config[name] = cfg[name];
       }
     }
-  };
-
-  microAmdRequire.reset = function microAmdReset() {
-    registry = {};
   };
 
   microAmdRequire.destroy = function microAmdDestroy() {
