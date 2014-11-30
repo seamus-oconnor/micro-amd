@@ -1,5 +1,5 @@
 /*!
-* Micro AMD Javascript Library v0.0.5
+* Micro AMD Javascript Library v0.0.6
 * https://github.com/seamus-oconnor/micro-amd/
 *
 * Copyright 2014 - 2014 Pneumatic Web Technologies Corp. and other contributors
@@ -26,7 +26,14 @@
     return mod || (mod = new Module(name, options), registry[mod.name] = mod), mod;
   }
   function moduleName(url) {
-    return normalizeUrl(url).substr(baseUrl.length);
+    return normalizeUrl(url).substr(baseUrl.length).replace(/\.js$/, "");
+  }
+  function executingScript() {
+    if (document.currentScript) return document.currentScript;
+    for (var scripts = document.getElementsByTagName("script"), i = scripts.length - 1; i >= 0; i--) {
+      var script = scripts[i];
+      if ("interactive" === script.readyState) return script;
+    }
   }
   function resolveName(name, parentName) {
     var scope = "";
@@ -57,13 +64,17 @@
     this.name = name, this.defined = !1, this.loaded = !1, this.loading = !1;
   }
   function microAmdDefine(name, deps, fn) {
-    "string" != typeof name && (fn = deps, deps = name, name = null), isArray(deps) || (fn = deps, 
-    deps = []), name ? getModule(name).setup(deps, fn) : anonQueue.push([ fn, deps, name ]);
+    if ("string" != typeof name && (fn = deps, deps = name, name = null), isArray(deps) || (fn = deps, 
+    deps = []), name) getModule(name).setup(deps, fn); else {
+      var script = currentlyAddingScript || executingScript();
+      if (anonDefine) return void (anonDefine = "error");
+      anonDefine = [ fn, deps, script ? moduleName(script.src) : null ];
+    }
   }
   function microAmdRequire(deps, fn) {
     deps = deps || [], loadDependencies(deps, ".", fn);
   }
-  var registry = {}, anonQueue = [], head = document.getElementsByTagName("head")[0], logPile = [], config = {
+  var anonDefine, currentlyAddingScript, registry = {}, head = document.getElementsByTagName("head")[0], logPile = [], config = {
     baseUrl: "./",
     paths: {}
   }, baseUrl = normalizeUrl(location.protocol + "//" + location.host + location.pathname + "-/../");
@@ -81,13 +92,11 @@
       e = e || window.event;
       var rs = this.readyState;
       if (!(scriptLoaded || rs && "loaded" !== rs && "complete" !== rs)) {
-        scriptLoaded = !0, self.loading = !1, anonQueue.length > 1 && err("Multiple anon define()s in " + e.srcElement.src);
-        var def = 1 === anonQueue.length ? anonQueue.pop() : [ null, empty, [], null ];
-        anonQueue = [];
-        var name = def.pop(), deps = def.pop(), fn = def.pop();
-        name = moduleName(this.src).replace(/\.js$/, ""), getModule(name).setup(deps, fn), 
-        this.onload = this.onreadystatechange = null, head && this.parentNode && head.removeChild(this), 
-        ready();
+        scriptLoaded = !0, self.loading = !1, "error" === anonDefine && err("Multiple anon define()s in " + e.srcElement.src);
+        var name = moduleName(this.src), deps = [], fn = empty;
+        anonDefine && (name = anonDefine.pop() || name, deps = anonDefine.pop(), fn = anonDefine.pop(), 
+        anonDefine = null), getModule(name).setup(deps, fn), this.onload = this.onreadystatechange = null, 
+        head && this.parentNode && head.removeChild(this), ready();
       }
     }
     var self = this, scriptLoaded = !1;
@@ -97,7 +106,8 @@
       s.src = buildUrl(this, parentMod), s.onload = scriptLoad, s.onreadystatechange = scriptLoad, 
       s.onerror = function() {
         err("Unable to load " + s.src);
-      }, head.appendChild(s), this.node = s;
+      }, currentlyAddingScript = s, head.appendChild(s), currentlyAddingScript = null, 
+      this.node = s;
     }
   }, Module.prototype.setup = function(deps, initFn) {
     this.loaded && err("Module " + this.name + " already defined"), this.loaded = !0, 
