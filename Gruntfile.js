@@ -177,7 +177,7 @@ var gruntConfig = {
       updateConfigs: ['bower'],
       commitFiles: ['-a'],
       pushTo: 'origin',
-      push: true,
+      push: false,
     }
   },
 };
