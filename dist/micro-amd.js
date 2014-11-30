@@ -1,5 +1,5 @@
 /*!
-* Micro AMD Javascript Library v0.0.6
+* Micro AMD Javascript Library v0.0.7
 * https://github.com/seamus-oconnor/micro-amd/
 *
 * Copyright 2014 - 2014 Pneumatic Web Technologies Corp. and other contributors
@@ -39,7 +39,7 @@
     var scope = "";
     if ("." === name.charAt(0)) scope = parentName + "/../"; else if (name.indexOf("/") > 0) {
       var parts = name.split("/"), prefix = config.paths[parts[0]];
-      prefix && (scope = prefix);
+      prefix && (scope = prefix + "/", name = parts.slice(1).join("/"));
     }
     return moduleName(baseUrl + scope + name);
   }
@@ -114,8 +114,6 @@
     this.deps = deps, this.initFn = initFn;
   }, microAmdDefine.amd = !0, microAmdRequire.config = function(cfg) {
     for (var name in cfg) cfg.hasOwnProperty(name) && (config[name] = cfg[name]);
-  }, microAmdRequire.reset = function() {
-    registry = {};
   }, microAmdRequire.destroy = function() {
     delete global.define, delete global.require;
   }, microAmdRequire.logPile = logPile, global.define = microAmdDefine, global.require = microAmdRequire;
