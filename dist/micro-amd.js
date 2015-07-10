@@ -2,7 +2,7 @@
 * Micro AMD Javascript Library v0.0.8
 * https://github.com/seamus-oconnor/micro-amd/
 *
-* Copyright 2014 - 2014 Pneumatic Web Technologies Corp. and other contributors
+* Copyright 2014 - 2015 Pneumatic Web Technologies Corp. and other contributors
 * Released under the MIT license
 * https://github.com/seamus-oconnor/micro-amd/tree/LICENSE.md
 */
@@ -43,8 +43,8 @@
     }
     return moduleName(baseUrl + scope + name);
   }
-  function buildUrl(mod, parentMod) {
-    var name = resolveName(mod.name, parentMod.name);
+  function buildUrl(mod, parentName) {
+    var name = resolveName(mod.name, parentName);
     return (config.baseUrl + "/" + name + ".js").replace(/\/{2,}/, "/");
   }
   function loadDependencies(deps, parent, fn) {
@@ -78,7 +78,7 @@
     baseUrl: "./",
     paths: {}
   }, baseUrl = normalizeUrl(location.protocol + "//" + location.host + location.pathname + "-/../");
-  Module.prototype.load = function(callback, parentMod) {
+  Module.prototype.load = function(callback, parentName) {
     function ready() {
       loadDependencies(self.deps, self.name, function() {
         if (!self.obj) {
@@ -103,7 +103,7 @@
     if (this.loaded) ready(); else if (this.loading) err("not handled"); else {
       this.loading = !0;
       var s = document.createElement("script");
-      s.src = buildUrl(this, parentMod), s.onload = scriptLoad, s.onreadystatechange = scriptLoad, 
+      s.src = buildUrl(this, parentName), s.onload = scriptLoad, s.onreadystatechange = scriptLoad, 
       s.onerror = function() {
         err("Unable to load " + s.src);
       }, currentlyAddingScript = s, head.appendChild(s), currentlyAddingScript = null, 

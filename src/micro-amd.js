@@ -13,28 +13,29 @@
     throw new Error(msg);
   }
 
+  function normalizePath(path) {
+    var prefix = 'http://example.com/';
+    return normalizeUrl(prefix + path).substr(prefix.length);
+  }
+
   function normalizeUrl(url) {
     var a = document.createElement('a');
     a.href = url;
     return a.cloneNode(false).href;
   }
 
-  function getModule(name, options) {
+  function getModule(name) {
     var mod = registry[name];
     if(!mod) {
       // haven't come across this module before;
-      mod = new Module(name, options);
+      mod = new Module(name);
       registry[mod.name] = mod;
     }
     return mod;
   }
 
-  function moduleName(url) {
-    return normalizeUrl(url).substr(baseUrl.length).replace(/\.js$/, '');
-  }
-
   function executingScript() {
-  if(document.currentScript) { return document.currentScript; }
+    if(document.currentScript) { return document.currentScript; }
 
     var scripts = document.getElementsByTagName('script');
 
@@ -46,13 +47,15 @@
     }
   }
 
-  function resolveName(name, parentName) {
+  function resolveName(name, parentMod) {
     // console.log('resolveName(' + name + ', ' + parentName + ')');
     var scope = ''; // normal and abs url cases;
 
     if(name.charAt(0) === '.') { // relative url
-      // use parentMod to resolve URL;
-      scope = parentName + '/../';
+      // use parentMod's name as the scope for this module's name
+      if(parentMod) {
+        scope = parentMod.name + '/../';
+      }
     } else if(name.indexOf('/') > 0) {
       var parts = name.split('/');
       var prefix = config.paths[parts[0]];
@@ -62,15 +65,17 @@
       }
     }
 
-    return moduleName(baseUrl + scope + name);
+    return normalizePath(scope + name);
   }
 
-  function buildUrl(mod, parentMod) {
+  function buildUrl(mod) {
     // console.log('buildUrl', mod, parentMod);
-    var name = resolveName(mod.name, parentMod.name);
-    // console.log('resolvedName: ' + name);
 
-    return (config.baseUrl + '/' + name + '.js').replace(/\/{2,}/, '/');
+    // Construct the baseUrl without any trailing filename. E.g /foo/bar.html =
+    // /foo/ and /foo/ = /foo/
+    var baseUrl = location.protocol + '//' + location.host + location.pathname + '-/../' + config.baseUrl;
+
+    return normalizeUrl(baseUrl + mod.name + '.js');
   }
 
 
@@ -85,15 +90,11 @@
     baseUrl: './',
     paths: {}
   };
-  // Construct the baseUrl without any trailing filename. E.g /foo/bar.html =
-  // /foo/ and /foo/ = /foo/
-  var baseUrl = normalizeUrl(location.protocol + '//' + location.host + location.pathname + '-/../');
-  // console.log('baseUrl:', baseUrl);
 
 
   /*************************** DEPENDENCIES **************************/
 
-  function loadDependencies(deps, parent, fn) {
+  function loadDependencies(deps, parentMod, fn) {
     var count = deps.length;
     var modules = [];
 
@@ -114,10 +115,10 @@
     } else {
       for(var i = 0; i < deps.length; i++) {
         var dep = deps[i];
-        var name = resolveName(dep, parent);
+        var name = resolveName(dep, parentMod);
         var mod = getModule(name);
         modules.push(mod);
-        mod.load(loaded, parent);
+        mod.load(loaded);
       }
     }
   }
@@ -132,13 +133,13 @@
     this.loading = false;
   }
 
-  Module.prototype.load = function(callback, parentMod) {
+  Module.prototype.load = function(callback) {
     var self = this;
     var scriptLoaded = false;
 
     function ready() {
       // console.log('module ready. ' + self.deps.length + ' deps');
-      loadDependencies(self.deps, self.name, function() {
+      loadDependencies(self.deps, self, function() {
         if(!self.obj) {
           var obj = self.initFn.apply(null, arguments);
           self.obj = obj;
@@ -156,24 +157,24 @@
       if(!scriptLoaded && (!rs || rs === 'loaded' || rs === 'complete')) {
         scriptLoaded = true;
         self.loading = false;
+        var url = this.src;
 
         if(anonDefine === 'error') {
-          err('Multiple anon define()s in ' + e.srcElement.src);
+          err('Multiple anon define()s in ' + url);
         }
 
-        var name = moduleName(this.src);
         var deps = [];
         var fn = empty;
 
         if(anonDefine) {
-          name = anonDefine.pop() || name;
+          url = anonDefine.pop() || url;
           deps = anonDefine.pop();
           fn = anonDefine.pop();
 
           anonDefine = null; // remove held reference to anon define
         } // else - must be resolved already.
 
-        getModule(name).setup(deps, fn);
+        self.setup(deps, fn);
 
         // Handle memory leak in IE
         this.onload = this.onreadystatechange = null;
@@ -193,7 +194,7 @@
     } else {
       this.loading = true;
       var s = document.createElement('script');
-      s.src = buildUrl(this, parentMod);
+      s.src = buildUrl(this);
       s.onload = scriptLoad;
       s.onreadystatechange = scriptLoad;
       s.onerror = function() {
@@ -203,12 +204,8 @@
       currentlyAddingScript = s;
       head.appendChild(s);
       currentlyAddingScript = null;
-
-      this.node = s;
     }
   };
-
-  /**/
 
   Module.prototype.setup = function(deps, initFn) {
     // console.log('Module.setup()');
@@ -249,7 +246,7 @@
         return;
       }
 
-      anonDefine = [fn, deps, script ? moduleName(script.src) : null];
+      anonDefine = [fn, deps, script ? script.src : null];
     }
 
     // console.log('define(' + name + ')', deps);
@@ -263,7 +260,7 @@
     deps = deps || [];
     // console.log('require(' + deps.join(', ') + ')');
 
-    loadDependencies(deps, '.', fn);
+    loadDependencies(deps, null, fn || empty);
   }
 
   microAmdRequire.config = function microAmdConfig(cfg) {
