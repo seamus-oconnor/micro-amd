@@ -73,7 +73,8 @@
 
     // Construct the baseUrl without any trailing filename. E.g /foo/bar.html =
     // /foo/ and /foo/ = /foo/
-    var baseUrl = location.protocol + '//' + location.host + location.pathname + '-/../' + config.baseUrl;
+    var fqUrl = /https?:\/\//.test(config.baseUrl);
+    var baseUrl = fqUrl ? config.baseUrl : location.protocol + '//' + location.host + location.pathname + '-/../' + config.baseUrl;
 
     return normalizeUrl(baseUrl + mod.name + '.js');
   }
